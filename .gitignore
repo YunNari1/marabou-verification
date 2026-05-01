@@ -1,0 +1,11 @@
+.claude/
+report.pdf
+__pycache__/
+*.pyc
+*.pyo
+data/
+*.egg-info/
+.env
+dist/
+build/
+.ipynb_checkpoints/

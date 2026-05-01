@@ -1,0 +1,9 @@
+torch>=2.0.0
+torchvision>=0.15.0
+onnx>=1.14.0
+onnxruntime>=1.15.0
+numpy>=1.24.0
+
+# maraboupy is the Python interface for Marabou.
+# It is NOT available on PyPI and must be installed from source.
+# See README.md for installation instructions.
