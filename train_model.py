@@ -105,7 +105,12 @@ def evaluate(model, loader, device):
 # ---------------------------------------------------------------------------
 
 def export_onnx(model: nn.Module, path: str):
-    """Export the trained model to ONNX with a fixed batch size of 1."""
+    """Export the trained model to ONNX with a fixed batch size of 1.
+
+    Uses dynamo=False to invoke the legacy TorchScript-based exporter,
+    which is more stable on Windows and produces cleaner ONNX graphs
+    that Marabou can parse without issues.
+    """
     model.eval()
     # Dummy input: batch_size=1, 784 features (already flattened)
     dummy = torch.zeros(1, 784)
@@ -115,7 +120,8 @@ def export_onnx(model: nn.Module, path: str):
         path,
         input_names=["input"],
         output_names=["output"],
-        opset_version=11,
+        opset_version=14,   # opset 14 is well-supported by Marabou
+        dynamo=False,       # use legacy TorchScript exporter
     )
     print(f"  Exported to {path}")
 
@@ -131,7 +137,7 @@ def verify_onnx(model: nn.Module, path: str, device):
     ort_out = sess.run(None, {"input": sample.numpy()})[0]
 
     max_diff = float(np.abs(pt_out - ort_out).max())
-    print(f"  ONNX sanity check — max output diff (PyTorch vs ORT): {max_diff:.2e}")
+    print(f"  ONNX sanity check - max output diff (PyTorch vs ORT): {max_diff:.2e}")
     assert max_diff < 1e-4, "ONNX export mismatch — check opset or model structure"
 
 
@@ -154,12 +160,15 @@ def main():
     train_loader, test_loader = get_loaders()
 
     # Model
+    import warnings
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+
     model = MnistMLP().to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.CrossEntropyLoss()
 
     # Train
-    print("\nTraining MnistMLP (784→64→32→10)...")
+    print("\nTraining MnistMLP (784->64->32->10)...")
     for epoch in range(1, args.epochs + 1):
         loss, train_acc = train_epoch(model, train_loader, optimizer, criterion, device)
         print(f"  Epoch {epoch}/{args.epochs}  loss={loss:.4f}  train_acc={train_acc:.2f}%")
