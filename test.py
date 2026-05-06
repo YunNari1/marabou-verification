@@ -65,15 +65,15 @@ def check_one_class(
     eps: float,
     model_path: str,
     timeout: int = 300,
-) -> tuple[str, dict | None]:
+) -> tuple[str, np.ndarray | None]:
     """
     Ask Marabou: does an adversarial x' exist where output[challenger] >= output[true_label]?
 
     Returns:
-        ('sat',  variable_assignment_dict)  — adversarial example found
-        ('unsat', None)                     — no such perturbation exists
-        ('timeout', None)                   — query exceeded timeout
-        ('error', None)                     — unexpected result code
+        ('sat',     adv_input_array)  — adversarial example found
+        ('unsat',   None)             — no such perturbation exists
+        ('timeout', None)             — query exceeded timeout
+        ('error',   None)             — unexpected result code
     """
     from maraboupy import Marabou, MarabouUtils
 
@@ -104,7 +104,9 @@ def check_one_class(
 
     exit_code = exit_code.lower().strip()
     if exit_code == "sat":
-        return "sat", vals
+        # Extract the adversarial input from Marabou's variable assignment
+        adv = np.array([vals.get(int(v), float(x[i])) for i, v in enumerate(input_vars)])
+        return "sat", adv
     elif exit_code == "unsat":
         return "unsat", None
     elif "timeout" in exit_code:
@@ -149,15 +151,11 @@ def verify_robustness(
         result, vals = check_one_class(x, true_label, j, eps, model_path, timeout)
 
         if result == "sat":
-            # Build adversarial input from Marabou's variable assignment
-            network_tmp = __import__("maraboupy").Marabou.read_onnx(model_path)
-            input_vars = network_tmp.inputVars[0].flatten()
-            adv = np.array([vals.get(int(v), 0.0) for v in input_vars], dtype=np.float64)
             return {
                 "status": "SAT",
                 "elapsed": time.time() - start,
                 "adversarial_class": j,
-                "adversarial_input": adv,
+                "adversarial_input": vals,   # vals is already the adv input array
             }
         elif result == "timeout":
             print(f"    [TIMEOUT] exceeded {timeout}s for class {j}")
@@ -253,7 +251,7 @@ def main():
         print(f"  are classified as digit {true_label}.")
     elif result["status"] == "SAT":
         j = result["adversarial_class"]
-        adv = result["adversarial_input"]
+        adv = result["adversarial_input"]   # np.ndarray from check_one_class
         linf = float(np.max(np.abs(adv - x)))
         print(f"\n  [VIOLATED] Adversarial example found — model predicts class {j}.")
         print(f"  Max pixel perturbation: {linf:.6f}  (eps={args.eps})")
