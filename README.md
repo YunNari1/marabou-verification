@@ -9,70 +9,45 @@ This project demonstrates the use of **Marabou**, an SMT-based neural network ve
 - **Problem 1** (`explore_resources.py`): Summarizes the models, datasets, and example verification queries available in the official Marabou resources directory.
 - **Problem 2** (`train_model.py` + `test.py`): Trains a small MLP on MNIST, exports it to ONNX, and uses Marabou to verify that the model is locally robust to ℓ∞ perturbations.
 
-## Installation
+## Installation & Usage (Docker — Recommended)
 
-### 1. Install Python dependencies
+Docker is the easiest way to run this project because Marabou requires
+Python ≤ 3.12 and a C++ build toolchain that is difficult to set up on Windows.
 
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Install Marabou (maraboupy)
-
-Maraboupy is the Python interface for Marabou and must be built from source.
-
-**Option A — pip (recommended if available):**
+### Step 1: Build the Docker image
 
 ```bash
-pip install maraboupy
+docker build -t marabou-mnist .
 ```
 
-**Option B — Build from source (Linux/macOS):**
+> The first build takes 5–15 minutes because Marabou is compiled from source.
+> Subsequent builds use the Docker layer cache and are much faster.
+
+### Step 2: Explore Marabou resources (Problem 1)
 
 ```bash
-git clone https://github.com/NeuralNetworkVerification/Marabou.git
-cd Marabou
-mkdir build && cd build
-cmake .. -DBUILD_PYTHON=ON
-cmake --build . --parallel 4
-cd ..
-pip install -e .
+docker run --rm marabou-mnist python explore_resources.py
 ```
 
-**Option C — Docker:**
+### Step 3: Run the verification (Problem 2)
+
+The pretrained model (`models/mnist_mlp.onnx`) is already included in the image.
 
 ```bash
-docker pull neuralnetworkverification/marabou
-docker run -it --rm -v $(pwd):/workspace neuralnetworkverification/marabou bash
+# Default: verify sample 0 with eps=0.01 (checks top competitor class only)
+docker run --rm marabou-mnist python test.py
+
+# Full verification against all 9 competing classes
+docker run --rm marabou-mnist python test.py --index 7 --eps 0.005 --full
 ```
 
-> **Windows users:** Building Marabou natively on Windows requires Visual Studio and CMake. Using WSL2 or Docker is strongly recommended.
-
-## Usage
-
-### Step 1: Explore Marabou resources (Problem 1)
+### Step 4: Retrain the model (optional)
 
 ```bash
-python explore_resources.py
-# Optionally, point to a local Marabou installation:
-python explore_resources.py --marabou-dir /path/to/Marabou
+docker run --rm -v "$(pwd)/models:/workspace/models" marabou-mnist python train_model.py
 ```
 
-### Step 2: Train the MNIST MLP and export to ONNX
-
-```bash
-python train_model.py
-```
-
-This trains a 784→64→32→10 MLP on MNIST and saves `models/mnist_mlp.onnx`.
-
-### Step 3: Run Marabou verification (Problem 2)
-
-```bash
-python test.py
-```
-
-Optional arguments:
+### Available arguments for test.py
 
 | Argument | Default | Description |
 |---|---|---|
@@ -80,11 +55,22 @@ Optional arguments:
 | `--index` | `0` | MNIST test sample index |
 | `--eps` | `0.01` | ℓ∞ perturbation radius |
 | `--full` | off | Check all 9 competing classes |
+| `--timeout` | `300` | Per-query timeout in seconds |
 
-Example:
+---
+
+## Installation Without Docker (Linux/macOS)
 
 ```bash
-python test.py --index 7 --eps 0.005 --full
+# 1. Requires Python 3.8–3.12 (Marabou does not support 3.13+)
+pip install -r requirements.txt
+
+# 2. Install Marabou (requires cmake and a C++ compiler)
+pip install "maraboupy @ https://github.com/NeuralNetworkVerification/Marabou/archive/refs/heads/master.zip"
+
+# 3. Run
+python explore_resources.py
+python test.py
 ```
 
 ## Project Structure

@@ -1,0 +1,7 @@
+.claude/
+.git/
+data/
+__pycache__/
+*.pyc
+report.pdf
+*.egg-info/
