@@ -75,7 +75,7 @@ def check_one_class(
         ('timeout', None)             — query exceeded timeout
         ('error',   None)             — unexpected result code
     """
-    from maraboupy import Marabou, MarabouUtils
+    from maraboupy import Marabou, MarabouUtils, MarabouCore
 
     # Load the ONNX model freshly for each sub-query
     network = Marabou.read_onnx(model_path)
@@ -93,7 +93,8 @@ def check_one_class(
 
     # --- Output constraint: output[challenger] - output[true_label] >= 0 ---
     # This asks: can the challenger class beat the true class?
-    eq = MarabouUtils.Equation(MarabouUtils.Equation.EquationType.GE)
+    # MarabouCore.Equation.GE means sum(addends) >= scalar
+    eq = MarabouUtils.Equation(MarabouCore.Equation.GE)
     eq.addAddend(1,  int(output_vars[challenger]))   # +1 * output[challenger]
     eq.addAddend(-1, int(output_vars[true_label]))   # -1 * output[true_label]
     eq.setScalar(0.0)                                # >= 0
