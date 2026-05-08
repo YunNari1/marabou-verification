@@ -1,5 +1,4 @@
 .claude/
-report.pdf
 __pycache__/
 *.pyc
 *.pyo
